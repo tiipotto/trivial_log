@@ -1,0 +1,48 @@
+[package]
+name = "trivial_log"
+version = "0.1.0"
+edition = "2021"
+authors = ["Alexander Schuetz <aschuetz@protonmail.com>", "Kevin Nakamura <grinkers@grinkers.net>"]
+description = "No-bloat leak free implementation for log"
+readme = "README.md"
+keywords = ["logging", "log"]
+license = "Zlib"
+repository = "https://github.com/tiipotto/trivial_log"
+categories = ["value-formatting", "development-tools", "command-line-interface"]
+
+[features]
+default = ["chrono"]
+
+[dependencies]
+log = { version = "^0.4" }
+chrono = { version = "0.4.39", optional = true }
+
+[lints.rust]
+future-incompatible = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+unsafe_code = "deny"
+
+[lints.clippy]
+allow_attributes = "warn"
+cargo_common_metadata = "warn"
+clone_on_ref_ptr = "warn"
+complexity = { level = "warn", priority = -1 }
+correctness = { level = "warn", priority = -1 }
+decimal_literal_representation = "warn"
+float_cmp_const = "warn"
+indexing_slicing = "warn"
+missing_docs_in_private_items = "warn"
+multiple_inherent_impl = "warn"
+nursery = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+type_complexity = "allow"
+unwrap_used = "warn"
+used_underscore_binding = "warn"
+
+[dev-dependencies]
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.138"
+ansi_term = "0.12.1"
+rusqlite = { version = "0.33.0", features = ["bundled"] }
