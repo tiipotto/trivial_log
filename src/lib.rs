@@ -3,6 +3,22 @@ use std::sync::Mutex;
 
 use log::{LevelFilter, Log, Record};
 
+#[must_use]
+pub fn init(level: LevelFilter, loggers: Vec<Logger>) {
+  let single = Singleton { level, loggers };
+
+  *SINGLETON.lock().unwrap() = Some(single);
+
+  let r = log::set_boxed_logger(Box::new(TrivialLog {}));
+  if r.is_ok() {
+    log::set_max_level(level);
+  }
+}
+
+pub fn free() {
+  *SINGLETON.lock().unwrap() = None;
+}
+
 struct Singleton {
   loggers: Vec<Logger>,
   level: LevelFilter,
@@ -15,12 +31,6 @@ pub struct Logger {
 }
 
 static SINGLETON: Mutex<Option<Singleton>> = Mutex::new(None);
-
-impl Drop for TrivialLog {
-  fn drop(&mut self) {
-    *SINGLETON.lock().unwrap() = None;
-  }
-}
 
 pub struct TrivialLog {}
 
@@ -37,20 +47,6 @@ impl Log for TrivialLog {
 }
 
 impl TrivialLog {
-  #[must_use]
-  pub fn init(level: LevelFilter, loggers: Vec<Logger>) -> Self {
-    let single = Singleton { level, loggers };
-
-    *SINGLETON.lock().unwrap() = Some(single);
-
-    let r = log::set_boxed_logger(Box::new(TrivialLog {}));
-    if r.is_ok() {
-      log::set_max_level(level);
-    }
-
-    Self {}
-  }
-
   fn level(&self) -> LevelFilter {
     let wat = &*SINGLETON.lock().unwrap();
     match wat {

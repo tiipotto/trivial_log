@@ -3,7 +3,7 @@ use std::io::{stdout, Write};
 use std::sync::Mutex;
 
 use log::{debug, error, info, Level, LevelFilter, Record};
-use trivial_log::{Logger, TrivialLog};
+use trivial_log::{free, init, Logger, TrivialLog};
 
 fn printer(buf: &mut Box<dyn Write + Send>, record: &Record<'_>) {
   let prefix = match record.metadata().level() {
@@ -27,7 +27,7 @@ fn main() {
     writer: Mutex::new(Box::new(File::create("katze.log").unwrap())),
     format: Box::new(printer),
   };
-  let _tl = TrivialLog::init(LevelFilter::Info, vec![stdout_logger, errlog]);
+  init(LevelFilter::Info, vec![stdout_logger, errlog]);
 
   error!("fuck you");
   println!("normal println");
@@ -36,4 +36,6 @@ fn main() {
     info!("猫");
   });
   t.join().unwrap();
+
+  trivial_log::free();
 }
