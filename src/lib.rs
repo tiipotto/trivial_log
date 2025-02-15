@@ -1,4 +1,5 @@
 #![allow(clippy::type_complexity)] // TODO
+#![allow(clippy::result_unit_err)] // TODO, we shouldn't really need an error type for log already initialized
 
 use log::{Level, LevelFilter, Log, Metadata, Record};
 use std::fs::File;
@@ -16,13 +17,15 @@ fn get_idx_for_level(level: Level) -> usize {
   }
 }
 
-fn set_logger(level: LevelFilter) -> bool {
-  static INIT: OnceLock<bool> = OnceLock::new();
-  if *INIT.get_or_init(|| log::set_logger(&TL).is_ok()) {
-    log::set_max_level(level);
-    return true;
-  }
-  false
+fn set_logger(level: LevelFilter) -> Result<(), ()> {
+  static INIT: OnceLock<Result<(), ()>> = OnceLock::new();
+  *INIT.get_or_init(|| match log::set_logger(&TL) {
+    Ok(_) => {
+      log::set_max_level(level);
+      Ok(())
+    }
+    Err(_) => Err(()),
+  })
 }
 
 fn default_format(record: &Record<'_>) -> Option<String> {
@@ -49,17 +52,17 @@ fn default_format(record: &Record<'_>) -> Option<String> {
 }
 
 /// Will forward all log to stdout using the default format
-pub fn init_stdout(level: LevelFilter) -> bool {
+pub fn init_stdout(level: LevelFilter) -> Result<(), ()> {
   builder().appender_filter(level, |msg: &str| println!("{}", msg)).init()
 }
 
 /// Will forward all log to stderr using the default format
-pub fn init_stderr(level: LevelFilter) -> bool {
+pub fn init_stderr(level: LevelFilter) -> Result<(), ()> {
   builder().appender_filter(level, |msg: &str| eprintln!("{}", msg)).init()
 }
 
 /// Will forward all warn and below to stdout and all error to stderr
-pub fn init_std(level: LevelFilter) -> bool {
+pub fn init_std(level: LevelFilter) -> Result<(), ()> {
   match level {
     LevelFilter::Off => builder().init(),
     LevelFilter::Error => builder().appender(Level::Error, |msg: &str| eprintln!("{}", msg)).init(),
@@ -134,8 +137,7 @@ impl Builder {
     self
   }
 
-  #[must_use]
-  pub fn init(self) -> bool {
+  pub fn init(self) -> Result<(), ()> {
     let mut level = LevelFilter::Off;
     if !self.appender[4].is_empty() {
       level = LevelFilter::Error;
@@ -159,18 +161,15 @@ impl Builder {
     });
 
     _ = guard.take();
-
-    if !set_logger(level) {
-      return false;
-    }
+    set_logger(level)?;
 
     if level == LevelFilter::Off {
-      return true;
+      return Ok(());
     }
 
     *guard = Some(TrivialLogInner { format: self.format, appender: self.appender });
 
-    true
+    Ok(())
   }
 }
 

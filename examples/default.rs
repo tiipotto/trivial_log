@@ -1,9 +1,7 @@
-use log::{debug, error, info, Level};
+use log::{debug, error, info, LevelFilter};
 
 fn main() {
-  _ = trivial_log::builder()
-    .appender_range(Level::Trace, Level::Error, |msg: &str| println!("{}", msg))
-    .init();
+  trivial_log::init_std(LevelFilter::Trace).unwrap();
 
   error!("fuck you");
   println!("normal println");

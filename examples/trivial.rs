@@ -2,13 +2,14 @@ use log::{debug, error, info, Level};
 use std::fs::OpenOptions;
 
 fn main() {
-  _ = trivial_log::builder()
+  trivial_log::builder()
     .appender(
       Level::Error,
       OpenOptions::new().append(true).create(true).open("shitlog.log").unwrap(),
     )
     .appender_range(Level::Trace, Level::Error, |msg: &str| println!("{}", msg))
-    .init();
+    .init()
+    .unwrap();
 
   error!("fuck you");
   println!("normal println");

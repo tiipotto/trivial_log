@@ -43,10 +43,11 @@ impl SqliteLog {
 fn main() {
   let sl = SqliteLog::new();
 
-  _ = trivial_log::builder()
+  trivial_log::builder()
     .appender(Level::Error, sl)
     .appender_range(Level::Trace, Level::Error, |msg: &str| println!("{}", msg))
-    .init();
+    .init()
+    .unwrap();
 
   error!("fuck you");
   println!("normal println");
