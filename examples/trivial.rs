@@ -6,35 +6,32 @@ use std::thread;
 use std::time::Duration;
 
 fn printer(buf: &mut Box<dyn Write + Send>, record: &Record<'_>) {
-    let prefix = match record.metadata().level() {
-        Level::Error => "[E]",
-        Level::Info => "[I]",
-        _ => "[Cat]",
-    };
+  let prefix = match record.metadata().level() {
+    Level::Error => "[E]",
+    Level::Info => "[I]",
+    _ => "[Cat]",
+  };
 
-    writeln!(
-        buf,
-        "{} {:?} {}",
-        prefix,
-        std::thread::current().id(),
-        record.args().to_string()
-    )
+  writeln!(buf, "{} {:?} {}", prefix, std::thread::current().id(), record.args().to_string())
     .unwrap()
 }
 
 fn main() {
-    _= trivial_log::builder()
-        .appender(Level::Error, OpenOptions::new().append(true).create(true).open("/tmp/shitlog.log").unwrap())
-        .appender_range(Level::Trace, Level::Error, |msg: &str| println!("{}", msg))
-        .init();
+  _ = trivial_log::builder()
+    .appender(
+      Level::Error,
+      OpenOptions::new().append(true).create(true).open("/tmp/shitlog.log").unwrap(),
+    )
+    .appender_range(Level::Trace, Level::Error, |msg: &str| println!("{}", msg))
+    .init();
 
-    error!("fuck you");
-    println!("normal println");
-    debug!("warning");
-    let t = std::thread::spawn(move || {
-        info!("猫");
-    });
-    t.join().unwrap();
+  error!("fuck you");
+  println!("normal println");
+  debug!("warning");
+  let t = std::thread::spawn(move || {
+    info!("猫");
+  });
+  t.join().unwrap();
 
-    trivial_log::free();
+  trivial_log::free();
 }

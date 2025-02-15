@@ -2,6 +2,19 @@
 name = "trivial_log"
 version = "0.1.0"
 edition = "2021"
+authors = ["Alexander Schuetz <aschuetz@protonmail.com>", "Kevin Nakamura <grinkers@grinkers.net>"]
+readme = "README.md"
+keywords = ["logging", "log"]
+license = "Zlib"
 
 [dependencies]
-log = { version = "^0.4", features = ["std"] }
+log = { version = "^0.4" }
+
+[lints.rust]
+future-incompatible = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+unsafe_code = "deny"
+
+[lints.clippy]
+indexing_slicing = "warn"
+unwrap_used = "warn"
