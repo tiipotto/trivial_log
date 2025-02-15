@@ -1,5 +1,5 @@
-#![allow(clippy::type_complexity)] // TODO
-#![allow(clippy::result_unit_err)] // TODO, we shouldn't really need an error type for log already initialized
+#![expect(clippy::type_complexity)] // TODO
+#![expect(clippy::result_unit_err)] // TODO, we shouldn't really need an error type for log already initialized
 
 use log::{Level, LevelFilter, Log, Metadata, Record};
 use std::fs::File;
@@ -131,7 +131,9 @@ impl Builder {
   pub fn appender_range(mut self, from: Level, to: Level, appender: impl IntoAppender) -> Self {
     let wrap = appender.into_appender();
     for i in get_idx_for_level(from)..=get_idx_for_level(to) {
-      self.appender[i].push(wrap.clone())
+      if let Some(a) = self.appender.get_mut(i) {
+        a.push(wrap.clone())
+      }
     }
 
     self
@@ -243,7 +245,8 @@ struct TrivialLogInner {
 
 impl TrivialLogInner {
   fn is_enabled(&self, level: Level) -> bool {
-    !&self.appender[get_idx_for_level(level)].is_empty()
+    let Some(a) = self.appender.get(get_idx_for_level(level)) else { return false };
+    !a.is_empty()
   }
 }
 
@@ -259,7 +262,9 @@ impl Log for TrivialLog {
   fn log(&self, record: &Record<'_>) {
     if let Some(guard) = self.guard() {
       if let Some(inner) = guard.as_ref() {
-        let appender_list = &inner.appender[get_idx_for_level(record.level())];
+        let Some(appender_list) = inner.appender.get(get_idx_for_level(record.level())) else {
+          return;
+        };
         if appender_list.is_empty() {
           return;
         }
