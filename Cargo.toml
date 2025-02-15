@@ -19,3 +19,6 @@ unsafe_code = "deny"
 # todo, reenable
 # indexing_slicing = "warn"
 # unwrap_used = "warn"
+
+[dev-dependencies]
+rusqlite = { version = "0.33.0", features = ["bundled"] }
