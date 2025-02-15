@@ -57,6 +57,7 @@ jobs:
           cargo build --examples
           valgrind --errors-for-leak-kinds=all --error-exitcode=1 --leak-check=full --show-leak-kinds=all target/debug/examples/trivial
           valgrind --errors-for-leak-kinds=all --error-exitcode=1 --leak-check=full --show-leak-kinds=all target/debug/examples/database
+          valgrind --errors-for-leak-kinds=all --error-exitcode=1 --leak-check=full --show-leak-kinds=all target/debug/examples/default
 
   build_linux:
     name: Build Linux
