@@ -1,26 +1,11 @@
-use log::{debug, error, info, Level, LevelFilter, Record};
-use std::fs::{File, OpenOptions};
-use std::io::{stdout, Write};
-use std::sync::Mutex;
-use std::thread;
-use std::time::Duration;
-
-fn printer(buf: &mut Box<dyn Write + Send>, record: &Record<'_>) {
-  let prefix = match record.metadata().level() {
-    Level::Error => "[E]",
-    Level::Info => "[I]",
-    _ => "[Cat]",
-  };
-
-  writeln!(buf, "{} {:?} {}", prefix, std::thread::current().id(), record.args().to_string())
-    .unwrap()
-}
+use log::{debug, error, info, Level};
+use std::fs::OpenOptions;
 
 fn main() {
   _ = trivial_log::builder()
     .appender(
       Level::Error,
-      OpenOptions::new().append(true).create(true).open("/tmp/shitlog.log").unwrap(),
+      OpenOptions::new().append(true).create(true).open("shitlog.log").unwrap(),
     )
     .appender_range(Level::Trace, Level::Error, |msg: &str| println!("{}", msg))
     .init();
@@ -34,4 +19,9 @@ fn main() {
   t.join().unwrap();
 
   trivial_log::free();
+}
+
+#[test]
+fn run() {
+  main();
 }

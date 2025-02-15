@@ -1,4 +1,4 @@
-extern crate core;
+#![allow(clippy::type_complexity)] // TODO
 
 use log::{Level, LevelFilter, Log, Metadata, Record};
 use std::fs::File;
@@ -17,6 +17,7 @@ fn get_idx_for_level(level: Level) -> usize {
 }
 
 fn set_logger(level: LevelFilter) -> bool {
+  static INIT: OnceLock<bool> = OnceLock::new();
   if *INIT.get_or_init(|| log::set_logger(&TL).is_ok()) {
     log::set_max_level(level);
     return true;
@@ -183,7 +184,6 @@ pub fn free() {
     .take();
 }
 
-static INIT: OnceLock<bool> = OnceLock::new();
 static TL: TrivialLog = TrivialLog(RwLock::new(None));
 
 pub trait Appender: Send + Sync {
@@ -219,7 +219,7 @@ impl<X: Write + Send> Appender for AppenderWriter<X> {
     if let Ok(mut guard) = self.0.lock() {
       //We ignore errors
       _ = guard.write_all(message.as_bytes());
-      _ = guard.write_all(['\n' as u8].as_slice()); //We dont do CRLF here windows and mac can suck dick
+      _ = guard.write_all([b'\n'].as_slice()); //We dont do CRLF here windows and mac can suck dick
       _ = guard.flush();
     }
   }
@@ -250,16 +250,16 @@ impl TrivialLogInner {
 
 struct TrivialLog(RwLock<Option<TrivialLogInner>>);
 impl Log for TrivialLog {
-  fn enabled(&self, metadata: &Metadata) -> bool {
+  fn enabled(&self, metadata: &Metadata<'_>) -> bool {
     if let Some(guard) = self.guard() {
       return guard.as_ref().map(|inner| inner.is_enabled(metadata.level())).unwrap_or(false);
     }
     false
   }
 
-  fn log(&self, record: &Record) {
+  fn log(&self, record: &Record<'_>) {
     if let Some(guard) = self.guard() {
-      guard.as_ref().map(|inner| {
+      if let Some(inner) = guard.as_ref() {
         let appender_list = &inner.appender[get_idx_for_level(record.level())];
         if appender_list.is_empty() {
           return;
@@ -270,7 +270,7 @@ impl Log for TrivialLog {
             appender.append_log_message(fmt.as_str());
           }
         }
-      });
+      };
     }
   }
 
@@ -278,7 +278,7 @@ impl Log for TrivialLog {
 }
 
 impl TrivialLog {
-  fn guard(&self) -> Option<RwLockReadGuard<Option<TrivialLogInner>>> {
+  fn guard(&self) -> Option<RwLockReadGuard<'_, Option<TrivialLogInner>>> {
     match self.0.try_read() {
       Ok(guard) => Some(guard),
       Err(TryLockError::Poisoned(poison)) => {

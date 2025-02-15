@@ -34,8 +34,28 @@ jobs:
       - name: Test gnu
         run: |
           cargo test --all-features --no-fail-fast --target ${{ matrix.target }}
-          cargo test --features std --no-default-features --no-fail-fast --target ${{ matrix.target }}
+          cargo test --no-default-features --no-fail-fast --target ${{ matrix.target }}
           cargo test --examples --target ${{ matrix.target }}
+
+  valgrind_linux:
+    name: Valgrind
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: "-D warnings"
+      RUSTDOCFLAGS: "-D warnings"
+    steps:
+      - name: Update sources
+        run: sudo apt update
+      - name: Install valgrind
+        run: sudo apt install valgrind
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable minus 2 releases
+      - name: 64-bit Valgrind
+        run: |
+          cargo build --examples
+          valgrind --errors-for-leak-kinds=all --error-exitcode=1 --leak-check=full --show-leak-kinds=all target/debug/examples/trivial
 
   build_linux:
     name: Build Linux
@@ -71,8 +91,7 @@ jobs:
       - name: Build gnu target
         run: |
           cargo build --all-features --target ${{ matrix.target }}
-          cargo build --features std --no-default-features
-          cargo build --features std,derive --no-default-features
+          cargo build --no-default-features
           cargo build --no-default-features
 
   build_windows:
@@ -93,7 +112,6 @@ jobs:
       - name: Build Windows
         run: |
           cargo build --all-features --target ${{ matrix.target }}
-          cargo build --features std --no-default-features
           cargo build --no-default-features
 
   test_windows:
@@ -114,7 +132,7 @@ jobs:
       - name: Test Windows
         run: |
           cargo test --all-features --no-fail-fast --target ${{ matrix.target }}
-          cargo test --features std --no-default-features --no-fail-fast --target ${{ matrix.target }}
+          cargo test --no-default-features --no-fail-fast --target ${{ matrix.target }}
           cargo test --examples --target ${{ matrix.target }}
 
   fmt:

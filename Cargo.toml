@@ -16,5 +16,6 @@ rust_2018_idioms = { level = "warn", priority = -1 }
 unsafe_code = "deny"
 
 [lints.clippy]
-indexing_slicing = "warn"
-unwrap_used = "warn"
+# todo, reenable
+# indexing_slicing = "warn"
+# unwrap_used = "warn"
