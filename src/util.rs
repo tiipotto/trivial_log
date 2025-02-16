@@ -116,4 +116,68 @@ pub(crate) fn get_level_for_handlers(handlers: &Vec<Box<dyn Handler>>) -> LevelF
 }
 
 #[cfg(test)]
-mod test {}
+mod test {
+  use crate::util::get_level_for_handlers;
+  use crate::Handler;
+
+  use log::LevelFilter;
+
+  #[test]
+  fn level_for_handlers() {
+    struct FakeLevelHandler {
+      lf: LevelFilter,
+    }
+    impl FakeLevelHandler {
+      fn new(lf: LevelFilter) -> Box<dyn Handler + 'static> {
+        Box::new(Self { lf })
+      }
+    }
+    impl Handler for FakeLevelHandler {
+      fn log(&self, _now: std::time::SystemTime, _record: &log::Record<'_>) {}
+
+      fn is_enabled(&self, level: log::Level) -> bool {
+        level <= self.lf
+      }
+    }
+
+    struct OnlyDebug;
+    impl OnlyDebug {
+      fn new() -> Box<dyn Handler + 'static> {
+        Box::new(Self {})
+      }
+    }
+    impl Handler for OnlyDebug {
+      fn log(&self, _now: std::time::SystemTime, _record: &log::Record<'_>) {}
+
+      fn is_enabled(&self, level: log::Level) -> bool {
+        level == log::Level::Debug
+      }
+    }
+
+    let handlers =
+      vec![FakeLevelHandler::new(LevelFilter::Debug), FakeLevelHandler::new(LevelFilter::Info)];
+    assert_eq!(get_level_for_handlers(&handlers), LevelFilter::Debug);
+
+    let handlers = vec![
+      FakeLevelHandler::new(LevelFilter::Off),
+      FakeLevelHandler::new(LevelFilter::Info),
+      FakeLevelHandler::new(LevelFilter::Trace),
+      FakeLevelHandler::new(LevelFilter::Info),
+    ];
+    assert_eq!(get_level_for_handlers(&handlers), LevelFilter::Trace);
+
+    let handlers = vec![
+      FakeLevelHandler::new(LevelFilter::Off),
+      FakeLevelHandler::new(LevelFilter::Error),
+      FakeLevelHandler::new(LevelFilter::Warn),
+    ];
+    assert_eq!(get_level_for_handlers(&handlers), LevelFilter::Warn);
+
+    let handlers = vec![
+      OnlyDebug::new(),
+      FakeLevelHandler::new(LevelFilter::Off),
+      FakeLevelHandler::new(LevelFilter::Warn),
+    ];
+    assert_eq!(get_level_for_handlers(&handlers), LevelFilter::Debug);
+  }
+}
