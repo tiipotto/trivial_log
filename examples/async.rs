@@ -4,7 +4,10 @@ use std::thread;
 
 fn main() {
   let (snd, rcv) = mpsc::channel::<String>();
-  trivial_log::builder().appender_filter(LevelFilter::Trace, snd).init().unwrap();
+  trivial_log::builder()
+    .default_format(|builder| builder.appender_filter(LevelFilter::Trace, snd))
+    .init()
+    .unwrap();
 
   let jh2 = thread::spawn(move || loop {
     let Ok(msg) = rcv.recv() else {

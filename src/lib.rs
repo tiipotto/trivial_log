@@ -9,7 +9,7 @@ mod util;
 
 fn set_logger(level: LevelFilter) -> Result<(), ()> {
   //Purpose of this once look is to track if we are the logging impl in use or not.
-  //We only have to call set_logger once, as everything except the first call will always fail.
+  //We only have to call log::set_logger once, as everything except the first call will always fail.
   static INIT: OnceLock<bool> = OnceLock::new();
 
   if *INIT.get_or_init(|| log::set_logger(&TL).is_ok()) {
@@ -23,90 +23,67 @@ fn set_logger(level: LevelFilter) -> Result<(), ()> {
 
 /// Initializes `log` to forward all log to stdout using the default format
 pub fn init_stdout(level: LevelFilter) -> Result<(), ()> {
-  builder().appender_filter(level, |msg: &String| print!("{}", msg)).init()
+  builder()
+    .default_format(|builder| builder.appender_filter(level, |msg: &String| print!("{}", msg)))
+    .init()
 }
 
 /// Initializes `log` to forward all log to stderr using the default format
 pub fn init_stderr(level: LevelFilter) -> Result<(), ()> {
-  builder().appender_filter(level, |msg: &String| eprint!("{}", msg)).init()
+  builder()
+    .default_format(|builder| builder.appender_filter(level, |msg: &String| eprint!("{}", msg)))
+    .init()
 }
 
 /// Initializes `log` to forward all warn and below to stdout and all error to stderr
 pub fn init_std(level: LevelFilter) -> Result<(), ()> {
   match level {
     LevelFilter::Off => builder().init(),
-    LevelFilter::Error => {
-      builder().appender(Level::Error, |msg: &String| eprint!("{}", msg)).init()
-    }
+    LevelFilter::Error => builder()
+      .default_format(|builder| builder.appender(Level::Error, |msg: &String| eprint!("{}", msg)))
+      .init(),
     LevelFilter::Warn => builder()
-      .appender(Level::Warn, |msg: &String| eprint!("{}", msg))
-      .appender(Level::Error, |msg: &String| eprint!("{}", msg))
+      .default_format(|builder| {
+        builder
+          .appender(Level::Warn, |msg: &String| eprint!("{}", msg))
+          .appender(Level::Error, |msg: &String| eprint!("{}", msg))
+      })
       .init(),
     LevelFilter::Info => builder()
-      .appender_range(Level::Info, Level::Warn, |msg: &String| eprint!("{}", msg))
-      .appender(Level::Error, |msg: &String| eprint!("{}", msg))
+      .default_format(|builder| {
+        builder
+          .appender_range(Level::Info, Level::Warn, |msg: &String| eprint!("{}", msg))
+          .appender(Level::Error, |msg: &String| eprint!("{}", msg))
+      })
       .init(),
     LevelFilter::Debug => builder()
-      .appender_range(Level::Debug, Level::Warn, |msg: &String| eprint!("{}", msg))
-      .appender(Level::Error, |msg: &String| eprint!("{}", msg))
+      .default_format(|builder| {
+        builder
+          .appender_range(Level::Debug, Level::Warn, |msg: &String| eprint!("{}", msg))
+          .appender(Level::Error, |msg: &String| eprint!("{}", msg))
+      })
       .init(),
     LevelFilter::Trace => builder()
-      .appender_range(Level::Trace, Level::Warn, |msg: &String| eprint!("{}", msg))
-      .appender(Level::Error, |msg: &String| eprint!("{}", msg))
+      .default_format(|fmt| {
+        fmt
+          .appender_range(Level::Trace, Level::Warn, |msg: &String| eprint!("{}", msg))
+          .appender(Level::Error, |msg: &String| eprint!("{}", msg))
+      })
       .init(),
   }
 }
 
 #[must_use]
-pub fn builder() -> Builder<String> {
+pub fn builder() -> Builder {
   Builder::default()
 }
 
-pub struct Builder<T> {
-  handlers: Vec<Box<dyn Handler>>,
+pub struct AppenderBuilder<T> {
   format: Box<dyn Fn(SystemTime, &Record<'_>) -> Option<T> + Send + Sync>,
   appender: [Vec<Arc<dyn Appender<T>>>; 5],
 }
 
-impl Default for Builder<String> {
-  fn default() -> Self {
-    Self {
-      handlers: Vec::new(),
-      format: Box::new(util::default_format),
-      appender: [const { Vec::new() }; 5],
-    }
-  }
-}
-
-impl<T: 'static> Builder<T> {
-  fn finish_handler(mut self) -> Vec<Box<dyn Handler>> {
-    let mut is_empty = true;
-    for n in &self.appender {
-      if !n.is_empty() {
-        is_empty = false;
-        break;
-      }
-    }
-
-    if is_empty {
-      return self.handlers;
-    }
-
-    self.handlers.push(Box::new(HandlerImpl { format: self.format, appender: self.appender }));
-
-    self.handlers
-  }
-
-  #[must_use]
-  pub fn format<Y>(
-    self,
-    format: impl Fn(SystemTime, &Record<'_>) -> Option<Y> + Send + Sync + 'static,
-  ) -> Builder<Y> {
-    let handlers = self.finish_handler();
-    let format = Box::new(format);
-    Builder { handlers, format, appender: [const { Vec::new() }; 5] }
-  }
-
+impl<T> AppenderBuilder<T> {
   #[must_use]
   pub fn appender(self, level: Level, appender: impl IntoAppender<T>) -> Self {
     self.appender_range(level, level, appender)
@@ -135,11 +112,48 @@ impl<T: 'static> Builder<T> {
 
     self
   }
+}
+
+#[derive(Default)]
+pub struct Builder {
+  handlers: Vec<Box<dyn Handler>>,
+}
+
+impl Builder {
+  #[must_use]
+  pub fn default_format(
+    self,
+    functor: impl FnOnce(AppenderBuilder<String>) -> AppenderBuilder<String>,
+  ) -> Self {
+    self.format(util::default_format, functor)
+  }
+
+  #[must_use]
+  pub fn format<Y: 'static>(
+    mut self,
+    format: impl Fn(SystemTime, &Record<'_>) -> Option<Y> + Send + Sync + 'static,
+    functor: impl FnOnce(AppenderBuilder<Y>) -> AppenderBuilder<Y>,
+  ) -> Self {
+    let result =
+      functor(AppenderBuilder { format: Box::new(format), appender: [const { Vec::new() }; 5] });
+    let mut is_empty = true;
+    for n in &result.appender {
+      if !n.is_empty() {
+        is_empty = false;
+        break;
+      }
+    }
+
+    if is_empty {
+      return self;
+    }
+
+    self.handlers.push(Box::new(HandlerImpl { format: result.format, appender: result.appender }));
+    self
+  }
 
   pub fn init(self) -> Result<(), ()> {
-    let handlers = self.finish_handler();
-
-    let level = util::get_level_for_handlers(&handlers);
+    let level = util::get_level_for_handlers(&self.handlers);
 
     let mut guard = TL.0.write().unwrap_or_else(|poison| {
       TL.0.clear_poison();
@@ -153,7 +167,7 @@ impl<T: 'static> Builder<T> {
       return Ok(());
     }
 
-    *guard = Some(HandlerCompound::new(handlers));
+    *guard = Some(HandlerCompound::new(self.handlers));
 
     Ok(())
   }
@@ -169,7 +183,7 @@ pub fn free() {
     .take();
 }
 
-static TL: TrivialLog = TrivialLog(RwLock::new(None));
+static TL: LogImpl = LogImpl(RwLock::new(None));
 
 trait Handler: Sync + Send {
   fn log(&self, now: SystemTime, record: &Record<'_>);
@@ -257,8 +271,8 @@ impl HandlerCompound {
   }
 }
 
-struct TrivialLog(RwLock<Option<HandlerCompound>>);
-impl Log for TrivialLog {
+struct LogImpl(RwLock<Option<HandlerCompound>>);
+impl Log for LogImpl {
   fn enabled(&self, metadata: &Metadata<'_>) -> bool {
     if let Some(guard) = self.guard() {
       return guard.as_ref().map(|inner| inner.is_enabled(metadata.level())).unwrap_or(false);
@@ -277,7 +291,7 @@ impl Log for TrivialLog {
   fn flush(&self) {}
 }
 
-impl TrivialLog {
+impl LogImpl {
   fn guard(&self) -> Option<RwLockReadGuard<'_, Option<HandlerCompound>>> {
     match self.0.try_read() {
       Ok(guard) => Some(guard),

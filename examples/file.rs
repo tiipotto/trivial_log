@@ -3,8 +3,13 @@ use std::path::Path;
 
 fn main() {
   trivial_log::builder()
-    .appender_range(Level::Info, Level::Error, Path::new("mylog.log"))
-    .appender_range(Level::Trace, Level::Error, |msg: &String| print!("{}", msg))
+    .default_format(|builder| {
+      builder.appender_range(Level::Info, Level::Error, Path::new("mylog.log")).appender_range(
+        Level::Trace,
+        Level::Error,
+        |msg: &String| print!("{}", msg),
+      )
+    })
     .init()
     .unwrap();
 
