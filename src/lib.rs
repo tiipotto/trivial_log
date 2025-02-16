@@ -1,24 +1,11 @@
-#![expect(clippy::type_complexity)] // TODO
 #![expect(clippy::result_unit_err)] // TODO, we shouldn't really need an error type for log already initialized
 
 use log::{Level, LevelFilter, Log, Metadata, Record};
-use std::fs::{File, OpenOptions};
-use std::io::{BufWriter, Write};
-use std::path::Path;
-use std::sync::{mpsc, Arc, Mutex, OnceLock, RwLock, RwLockReadGuard, TryLockError};
+use std::sync::{Arc, OnceLock, RwLock, RwLockReadGuard, TryLockError};
 use std::time::SystemTime;
 
+mod impls;
 mod util;
-
-fn get_idx_for_level(level: Level) -> usize {
-  match level {
-    Level::Trace => 0,
-    Level::Debug => 1,
-    Level::Info => 2,
-    Level::Warn => 3,
-    Level::Error => 4,
-  }
-}
 
 fn set_logger(level: LevelFilter) -> Result<(), ()> {
   //Purpose of this once look is to track if we are the logging impl in use or not.
@@ -34,17 +21,17 @@ fn set_logger(level: LevelFilter) -> Result<(), ()> {
   Err(())
 }
 
-/// Will forward all log to stdout using the default format
+/// Initializes `log` to forward all log to stdout using the default format
 pub fn init_stdout(level: LevelFilter) -> Result<(), ()> {
   builder().appender_filter(level, |msg: &String| print!("{}", msg)).init()
 }
 
-/// Will forward all log to stderr using the default format
+/// Initializes `log` to forward all log to stderr using the default format
 pub fn init_stderr(level: LevelFilter) -> Result<(), ()> {
   builder().appender_filter(level, |msg: &String| eprint!("{}", msg)).init()
 }
 
-/// Will forward all warn and below to stdout and all error to stderr
+/// Initializes `log` to forward all warn and below to stdout and all error to stderr
 pub fn init_std(level: LevelFilter) -> Result<(), ()> {
   match level {
     LevelFilter::Off => builder().init(),
@@ -140,7 +127,7 @@ impl<T: 'static> Builder<T> {
   #[must_use]
   pub fn appender_range(mut self, from: Level, to: Level, appender: impl IntoAppender<T>) -> Self {
     let wrap = appender.into_appender();
-    for i in get_idx_for_level(from)..=get_idx_for_level(to) {
+    for i in util::get_idx_for_level(from)..=util::get_idx_for_level(to) {
       if let Some(a) = self.appender.get_mut(i) {
         a.push(wrap.clone())
       }
@@ -197,7 +184,7 @@ struct HandlerImpl<T> {
 
 impl<T> Handler for HandlerImpl<T> {
   fn log(&self, now: SystemTime, record: &Record<'_>) {
-    let Some(appender_list) = self.appender.get(get_idx_for_level(record.level())) else {
+    let Some(appender_list) = self.appender.get(util::get_idx_for_level(record.level())) else {
       unreachable!();
     };
 
@@ -213,7 +200,7 @@ impl<T> Handler for HandlerImpl<T> {
   }
 
   fn is_enabled(&self, level: Level) -> bool {
-    let Some(a) = self.appender.get(get_idx_for_level(level)) else { return false };
+    let Some(a) = self.appender.get(util::get_idx_for_level(level)) else { return false };
     !a.is_empty()
   }
 }
@@ -256,11 +243,11 @@ impl HandlerCompound {
     Self { handlers, handler_indices }
   }
   fn is_enabled(&self, level: Level) -> bool {
-    self.handler_indices.get(get_idx_for_level(level)).map(Vec::is_empty).unwrap_or(false)
+    self.handler_indices.get(util::get_idx_for_level(level)).map(Vec::is_empty).unwrap_or(false)
   }
   fn log(&self, record: &Record<'_>) {
     let now: SystemTime = SystemTime::now();
-    if let Some(indices) = self.handler_indices.get(get_idx_for_level(record.level())) {
+    if let Some(indices) = self.handler_indices.get(util::get_idx_for_level(record.level())) {
       for idx in indices {
         if let Some(handler) = self.handlers.get(*idx) {
           handler.log(now, record)
@@ -300,72 +287,5 @@ impl TrivialLog {
       }
       Err(TryLockError::WouldBlock) => None, //Logger is currently being configured in another thread.
     }
-  }
-}
-
-impl<T, Y> IntoAppender<Y> for T
-where
-  T: Appender<Y> + 'static,
-{
-  fn into_appender(self) -> Arc<dyn Appender<Y>> {
-    Arc::new(self)
-  }
-}
-
-impl<T, Y> Appender<Y> for T
-where
-  T: Fn(&Y) + Send + Sync,
-{
-  fn append_log_message(&self, message: &Y) {
-    self(message)
-  }
-}
-
-struct AppenderWriter<X: Write + Send>(Mutex<BufWriter<X>>);
-
-impl<X: Write + Send> Appender<String> for AppenderWriter<X> {
-  fn append_log_message(&self, message: &String) {
-    if let Ok(mut guard) = self.0.lock() {
-      //We ignore errors
-      _ = guard.write_all(message.as_bytes());
-      _ = guard.flush();
-    }
-  }
-}
-
-impl<X: Write + Send + 'static> IntoAppender<String> for BufWriter<X> {
-  fn into_appender(self) -> Arc<dyn Appender<String>> {
-    Arc::new(AppenderWriter(Mutex::new(self)))
-  }
-}
-
-impl IntoAppender<String> for File {
-  fn into_appender(self) -> Arc<dyn Appender<String>> {
-    Arc::new(AppenderWriter(Mutex::new(BufWriter::new(self))))
-  }
-}
-
-impl IntoAppender<String> for &Path {
-  fn into_appender(self) -> Arc<dyn Appender<String>> {
-    match OpenOptions::new().append(true).create(true).open(self) {
-      Ok(file) => file.into_appender(),
-      Err(err) => {
-        panic!("Failed to open or create log file {} reason: {}", self.to_string_lossy(), err)
-      }
-    }
-  }
-}
-
-impl<X: Send + Clone> Appender<X> for mpsc::Sender<X> {
-  fn append_log_message(&self, message: &X) {
-    //We don't care if the receiving end is dead.
-    _ = self.send(message.clone());
-  }
-}
-
-impl<X: Send + Clone> Appender<X> for mpsc::SyncSender<X> {
-  fn append_log_message(&self, message: &X) {
-    //We don't care if the receiving end is dead.
-    _ = self.send(message.clone());
   }
 }

@@ -3,6 +3,16 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::{Handler, Level, LevelFilter};
 use log::Record;
 
+pub(crate) fn get_idx_for_level(level: Level) -> usize {
+  match level {
+    Level::Trace => 0,
+    Level::Debug => 1,
+    Level::Info => 2,
+    Level::Warn => 3,
+    Level::Error => 4,
+  }
+}
+
 pub(crate) fn default_format(now: SystemTime, record: &Record<'_>) -> Option<String> {
   let prefix = match record.metadata().level() {
     Level::Error => "[E]",

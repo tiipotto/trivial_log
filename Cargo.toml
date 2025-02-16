@@ -22,6 +22,7 @@ unsafe_code = "deny"
 [lints.clippy]
 allow_attributes = "warn"
 indexing_slicing = "warn"
+type_complexity = "allow"
 unwrap_used = "warn"
 
 [dev-dependencies]

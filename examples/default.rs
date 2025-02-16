@@ -3,11 +3,11 @@ use log::{debug, error, info, LevelFilter};
 fn main() {
   trivial_log::init_std(LevelFilter::Trace).unwrap();
 
-  error!("fuck you");
+  error!("a critical error");
   println!("normal println");
   debug!("warning");
   let t = std::thread::spawn(move || {
-    info!("猫");
+    info!("猫 playing in your threads");
   });
   t.join().unwrap();
 
