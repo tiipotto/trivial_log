@@ -32,8 +32,12 @@ A more advanced configuration that includes both stdout and logging to a file
 ```rust
 fn main() {
     trivial_log::builder()
-        .appender_range(Level::Info, Level::Error, Path::new("mylog.log"))
-        .appender_range(Level::Trace, Level::Error, |msg: &String| print!("{}", msg))
+        .default_format(|builder| {
+            builder
+                //
+                .appender_range(Level::Info, Level::Error, Path::new("mylog.log"))
+                .appender_range(Level::Trace, Level::Error, |msg: &String| print!("{}", msg))
+        })
         .init()
         .unwrap();
 
@@ -59,7 +63,7 @@ struct LogEntity {
 
 fn main() {
     trivial_log::builder()
-        .appender_range(Level::Trace, Level::Error, |msg: &String| print!("{}", msg))
+        .default_format(|builder| builder.appender_range(Level::Trace, Level::Error, |msg: &String| print!("{}", msg)))
         .format(|now: std::time::SystemTime, record: &log::Record| {
             Some(LogEntity {
                 message: record.args().to_string(),
@@ -67,8 +71,7 @@ fn main() {
                 thread: format!("{:?}", std::thread::current().id()),
                 timestamp: now.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis(),
             })
-        })
-        .appender_range(Level::Trace, Level::Error, |msg: &LogEntity| print!("{}", serde_json::to_string(msg).unwrap()))
+        }, |builder| builder.appender_range(Level::Trace, Level::Error, |msg: &LogEntity| print!("{}", serde_json::to_string(msg).unwrap())))
         .init()
         .unwrap();
 }
@@ -86,25 +89,27 @@ This examples uses the ansi_term crate, but you can also create the ansi escape 
 fn main() {
     use ansi_term::Color;
     trivial_log::builder()
-        .format(|_time, rec| {
-            let prefix = match rec.level() {
-                Level::Error => Color::Red.paint("E"),
-                Level::Warn => Color::Yellow.paint("W"),
-                Level::Info => Color::Green.paint("I"),
-                Level::Debug => Color::Purple.paint("D"),
-                Level::Trace => Color::White.paint("T"),
-            };
-            return Some(format!(
-                "{}{}{} {}\n",
-                Color::Blue.paint("["),
-                prefix,
-                Color::Blue.paint("]"),
-                rec.args()
-            ));
-        })
-        .appender_filter(LevelFilter::Trace, |msg: &String| print!("{}", msg))
+        .format(
+            |_time, rec| {
+                let prefix = match rec.level() {
+                    Level::Error => Color::Red.paint("E"),
+                    Level::Warn => Color::Yellow.paint("W"),
+                    Level::Info => Color::Green.paint("I"),
+                    Level::Debug => Color::Purple.paint("D"),
+                    Level::Trace => Color::White.paint("T"),
+                };
+                Some(format!(
+                    "{}{}{} {}\n",
+                    Color::Blue.paint("["),
+                    prefix,
+                    Color::Blue.paint("]"),
+                    rec.args()
+                ))
+            },
+            |builder| builder.appender_filter(LevelFilter::Trace, |msg: &String| print!("{}", msg)),
+        )
         .init()
-        .unwrap();
+        .ok();
 }
 ```
 
@@ -136,7 +141,7 @@ When a format has multiple appenders, the format fn only gets called once.
    * Panics are propangated to caller of the `log!` function.
      Either use panic=abort, or prevent/catch panics in the appender impl as the caller of `log!` is unlikely to expect it to panic.
 4. trivial_log does NOT start any threads.
-   * If an appender can take a very long time (eg logging over a network), it may be a good idea to use a background thread.
+   * If an appender can take a very long time (e.g. logging over a network), it may be a good idea to use a background thread.
      See the [async example](./examples/async.rs) for a starting point.
 5. trivial_log does NOT do any synchronization
   * The appender impl has to synchronize to prevent concurrent access to mutable resources (such as a file/stream).

@@ -23,7 +23,7 @@ fn main() {
       |builder| builder.appender_filter(LevelFilter::Trace, |msg: &String| print!("{}", msg)),
     )
     .init()
-    .unwrap();
+    .ok();
 
   error!("Error");
   warn!("Warn");

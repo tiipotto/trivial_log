@@ -1,25 +1,25 @@
+//!
+//!# trivial_log
+//! This is intended to be a no-bloat implementation for [log](https://github.com/rust-lang/log).
+//! It includes simple defaults while still providing good flexibility for more advanced use cases.
+//!
+//!# Example
+//!```rust
+//!fn main() {
+//!  trivial_log::init_std(log::LevelFilter::Trace).unwrap();
+//!  log::error!("An error has occurred, please help!");
+//!}
+//!```
+//!
 #![expect(clippy::result_unit_err)] // TODO, we shouldn't really need an error type for log already initialized
 
 use log::{Level, LevelFilter, Log, Metadata, Record};
-use std::sync::{Arc, OnceLock, RwLock, RwLockReadGuard, TryLockError};
+use std::sync::{Arc, RwLock, RwLockReadGuard, TryLockError};
 use std::time::SystemTime;
 
 mod impls;
 mod util;
 
-fn set_logger(level: LevelFilter) -> Result<(), ()> {
-  //Purpose of this once look is to track if we are the logging impl in use or not.
-  //We only have to call log::set_logger once, as everything except the first call will always fail.
-  static INIT: OnceLock<bool> = OnceLock::new();
-
-  if *INIT.get_or_init(|| log::set_logger(&TL).is_ok()) {
-    //We cant do this inside the init fn, or we cannot "change" the level later on anymore!
-    log::set_max_level(level);
-    return Ok(());
-  }
-
-  Err(())
-}
 
 /// Initializes `log` to forward all log to stdout using the default format
 pub fn init_stdout(level: LevelFilter) -> Result<(), ()> {
@@ -114,20 +114,32 @@ impl<T> AppenderBuilder<T> {
   }
 }
 
+/// Builder for configuring trivial_log.
+/// Use trivial_log::builder() to obtain a new instance of this struct.
 #[derive(Default)]
 pub struct Builder {
   handlers: Vec<Box<dyn Handler>>,
 }
 
 impl Builder {
+
+  /// Use the default format for some appenders.
+  /// The passed builder argument FnOnce can be used to register the appenders.
+  ///
+  /// Note: It will lead to better performance if all appenders that use the same format are grouped together and registered in the same closure!
   #[must_use]
   pub fn default_format(
     self,
-    functor: impl FnOnce(AppenderBuilder<String>) -> AppenderBuilder<String>,
+    builder: impl FnOnce(AppenderBuilder<String>) -> AppenderBuilder<String>,
   ) -> Self {
-    self.format(util::default_format, functor)
+    self.format(util::default_format, builder)
   }
 
+  /// Use a provided format for some appenders.
+  /// The passed format argument Fn will provide the format struct. (for example a String)
+  /// The passed builder argument FnOnce can be used to register the appenders which will consume the format struct.
+  ///
+  /// Note: It will lead to better performance if all appenders that use the same format are grouped together and registered in the same closure!
   #[must_use]
   pub fn format<Y: 'static>(
     mut self,
@@ -152,6 +164,10 @@ impl Builder {
     self
   }
 
+  /// Initialize the logging implementation
+  /// # Errors
+  /// Only if a different logger implementation is in use.
+  /// If this fn errors then it was essentially a noop.
   pub fn init(self) -> Result<(), ()> {
     let level = util::get_level_for_handlers(&self.handlers);
 
@@ -161,7 +177,7 @@ impl Builder {
     });
 
     _ = guard.take();
-    set_logger(level)?;
+    util::set_log_logger_impl_and_level(level)?;
 
     if level == LevelFilter::Off {
       return Ok(());
@@ -173,6 +189,23 @@ impl Builder {
   }
 }
 
+/// This fn will remove all formats and appenders from the log impl making it essentially a noop.
+///
+///
+/// This fn is always fully safe to call.
+/// This fn will block until all appenders are finished writing concurrent ongoing messages.
+///
+/// initializing a new logger using the normal Builder is always possible after this fn has been called.
+///
+/// There is no need to call this function before exiting the program but doing so will cause
+/// some allocated memory to be freed and therefore will make valgrind and other leak checkers very happy,
+/// Because this function leaves behind a "noop" logger, there will NOT be a problem
+/// if the program calls log! after this fn is called.
+///
+/// This function does nothing if called repeatedly.
+/// This function does nothing if the actual logger implementation in use by the log crate is a different one.
+///
+/// Note: Calling this fn will not allow you to switch to a different logger implementation since that is not a supported use case of the log crate itself.
 pub fn free() {
   TL.0
     .write()
@@ -219,10 +252,16 @@ impl<T> Handler for HandlerImpl<T> {
   }
 }
 
+/// This trait defines an appender which consumes a formatted log message of type T and will "write" it to somewhere like stdout/disk/network/...
 pub trait Appender<T>: Send + Sync {
+
+  /// Called for each formatted log message.
   fn append_log_message(&self, message: &T);
 }
 
+/// Custom "Into" trait that produces an Arc<dyn Appender<T>.
+/// This trait does not usually need to implemented manually.
+/// It is implemented for all Appender structs by default.
 pub trait IntoAppender<T> {
   fn into_appender(self) -> Arc<dyn Appender<T>>;
 }
