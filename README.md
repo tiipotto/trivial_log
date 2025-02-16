@@ -79,7 +79,7 @@ fn main() {
 ```
 
 ## [Database](./examples/database.rs)
-An "advanced" configuration, showing how to extend beyond the basics, by logging into a SQLite database.
+An "advanced" configuration, showing how to implement a custom Appender Implementation, by logging into a SQLite database.
 
 ## [Colors](./examples/color.rs)
 On ANSI terminals you can write colors.
