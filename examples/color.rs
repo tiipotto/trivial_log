@@ -11,13 +11,13 @@ fn main() {
         Level::Debug => Color::Purple.paint("D"),
         Level::Trace => Color::White.paint("T"),
       };
-      return Some(format!(
+      Some(format!(
         "{}{}{} {}\n",
         Color::Blue.paint("["),
         prefix,
         Color::Blue.paint("]"),
         rec.args()
-      ));
+      ))
     })
     .appender_filter(LevelFilter::Trace, |msg: &String| print!("{}", msg))
     .init()
