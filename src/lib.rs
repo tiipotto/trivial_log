@@ -118,10 +118,14 @@ fn default_format(now: SystemTime, record: &Record<'_>) -> Option<String> {
 
   let mut buf = String::with_capacity(128);
   let instant = now.duration_since(UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
-  //TODO better date+time format
+  #[cfg(feature = "chrono")]
+  let instant = {
+    const FORMAT: chrono::format::StrftimeItems<'_> = chrono::format::StrftimeItems::new("%d.%m.%Y %H:%M:%S%.3f UTC");
+    chrono::DateTime::from_timestamp_millis(instant as i64).map(|dt| dt.format_with_items(FORMAT)).unwrap()
+  };
 
   use std::fmt::Write;
-  if writeln!(buf, "{} {} {:?} - {}", prefix, instant, std::thread::current().id(), record.args())
+  if writeln!(buf, "{} - {} - {:?} - {}", prefix, instant, std::thread::current().id(), record.args())
     .is_ok()
   {
     return Some(buf);
