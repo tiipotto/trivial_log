@@ -55,10 +55,11 @@ jobs:
       - name: 64-bit Valgrind
         run: |
           cargo build --examples
-          valgrind --errors-for-leak-kinds=all --error-exitcode=1 --leak-check=full --show-leak-kinds=all target/debug/examples/file
+          valgrind --errors-for-leak-kinds=all --error-exitcode=1 --leak-check=full --show-leak-kinds=all target/debug/examples/async
           valgrind --errors-for-leak-kinds=all --error-exitcode=1 --leak-check=full --show-leak-kinds=all target/debug/examples/color
-          valgrind --errors-for-leak-kinds=all --error-exitcode=1 --leak-check=full --show-leak-kinds=all target/debug/examples/json
           valgrind --errors-for-leak-kinds=all --error-exitcode=1 --leak-check=full --show-leak-kinds=all target/debug/examples/default
+          valgrind --errors-for-leak-kinds=all --error-exitcode=1 --leak-check=full --show-leak-kinds=all target/debug/examples/file
+          valgrind --errors-for-leak-kinds=all --error-exitcode=1 --leak-check=full --show-leak-kinds=all target/debug/examples/json
 
   build_linux:
     name: Build Linux

@@ -1,11 +1,11 @@
 # Trivial
-This is intended to be a no-bloat implementation for [log](https://github.com/rust-lang/log)
-that still provides most basic features out of the box and good flexibility for more advanced use cases.
+This is intended to be a no-bloat implementation for [log](https://github.com/rust-lang/log).
+It includes simple defaults while still providing good flexibility for more advanced use cases.
 
 # Motivation
-Unlike many other implementations, this crate intends to have no possible memory leaks (even 'static)
-making is suitable for running valgrind tests that treat "possibly leaked" as errors.
-This was the primary motivation when making this library
+The original motivation was logging while running valgrind tests that treat "possibly leaked" as errors.
+Unlike many other implementations, this crate intends to have no possible memory leaks (even 'static).
+All examples should have `All heap blocks were freed -- no leaks are possible`.
 
 # Examples
 
@@ -44,8 +44,7 @@ fn main() {
 
 ## [Stdout+JSON](./examples/json.rs)
 An "advanced" configuration that shows how to log normal human-readable messages to stdout
-but also prepare a json for "sending" to for example a log server. The example does not include the actual sending
-part and only prints the json to stdout. You can easily replace this with a communication library of your choosing.
+but shows how to prepare a json object for "processing" (eg to a log server).
 
 ```rust
 /// This serves as an example of how your json entity may look like.
@@ -80,7 +79,7 @@ fn main() {
 An "advanced" configuration, showing how to extend beyond the basics, by logging into a SQLite database.
 
 ## [Colors](./examples/color.rs)
-On ANSI terminals you can write colors. This example produces an output "similar" to what the colog crate does by default.
+On ANSI terminals you can write colors.
 This examples uses the ansi_term crate, but you can also create the ansi escape codes manually without any dependencies.
 
 ```rust
@@ -116,10 +115,10 @@ The default format outputs String.
 2. The appender, which writes the output of the format function to somewhere (stdout/file/...) if the level of the record
 matches the level of the appender.
 
-There is no "limit" on how many format functions or appenders for each format you can have.
+There is no limit for how many format functions or appenders you can use.
 
-Each log message always processes all formats and appenders where the log level matches,
-but each format may have multiple appenders for which the format fn only gets called once.
+Each log always processes all formats and appenders when the log level matches.
+When a format has multiple appenders, the format fn only gets called once.
 
 # Default Appender Implementations
 * `std::io::BufWriter<T> where T: Write + Send` - io errors are ignored
@@ -129,20 +128,22 @@ but each format may have multiple appenders for which the format fn only gets ca
 * `std::sync::mpsc::SyncSender<T> where T: Send+Clone` - if the receiver dies then this appender becomes a noop.
   The appender only uses the send method to send data
 
-
 # Implementation details
 1. The appender's and formats can be reconfigured at any time during the application.
 2. trivial_log does NOT prevent recursive calls inside the appender.
-   * It's the responsibility of the appender to prevent calls to 'log' from inside the appender that lead to a stack overflow.
+   * It's the responsibility of the appender to prevent calls to `log!` from inside the appender that can lead to a stack overflow.
 3. trivial_log does NOT catch panics that occur in the appender.
-   * Panics are propangated to whoever called log in the first place.
-     Either use panic=abort, or prevent/catch panics in the appender impl as the caller of log! is unlikely to expect it to panic.
+   * Panics are propangated to caller of the `log!` function.
+     Either use panic=abort, or prevent/catch panics in the appender impl as the caller of `log!` is unlikely to expect it to panic.
 4. trivial_log does NOT start any threads.
-   * If an appender takes a very long time then it may be a good idea if the appender performs the bulk of its tasks in a background thread.
-     otherwise you may bottleneck your application due to logging
+   * If an appender can take a very long time (eg logging over a network), it may be a good idea to use a background thread.
+     See the [async example](./examples/async.rs) for a starting point.
 5. trivial_log does NOT do any synchronization
   * The appender impl has to synchronize to prevent concurrent access to mutable resources (such as a file/stream).
+    This crate uses no unsafe, so the rust compiler will prevent misuse.
+    See [Database](./examples/database.rs) for an example.
   * Your appender will be called concurrently if multiple concurrent threads call log at the same.
     It is up to the appender implementation on what to do in this case.
     * The default impl for file will aquire a ordinary Mutex in the appender
     * The default impl for stdout/stderr will call print! and eprint! macros which guarantee synchronization.
+6. For no "possibly leaked" in valgrind, you must call `trivial_log::free()` before the process exits. It is memory safe (no UB) to not call this.
