@@ -43,73 +43,10 @@ pub(crate) fn default_format(now: SystemTime, record: &Record<'_>) -> Option<Str
 pub(crate) fn get_level_for_handlers(handlers: &Vec<Box<dyn Handler>>) -> LevelFilter {
   let mut level = LevelFilter::Off;
   for handler in handlers {
-    match level {
-      LevelFilter::Off => {
-        if handler.is_enabled(Level::Trace) {
-          return LevelFilter::Trace;
-        }
-        if handler.is_enabled(Level::Debug) {
-          level = LevelFilter::Debug;
-          continue;
-        }
-        if handler.is_enabled(Level::Info) {
-          level = LevelFilter::Info;
-          continue;
-        }
-        if handler.is_enabled(Level::Warn) {
-          level = LevelFilter::Warn;
-          continue;
-        }
-        if handler.is_enabled(Level::Error) {
-          level = LevelFilter::Error;
-          continue;
-        }
+    for lf in [Level::Error, Level::Warn, Level::Info, Level::Debug, Level::Trace] {
+      if handler.is_enabled(lf) {
+        level = std::cmp::max(lf.to_level_filter(), level);
       }
-      LevelFilter::Error => {
-        if handler.is_enabled(Level::Trace) {
-          return LevelFilter::Trace;
-        }
-        if handler.is_enabled(Level::Debug) {
-          level = LevelFilter::Debug;
-          continue;
-        }
-        if handler.is_enabled(Level::Info) {
-          level = LevelFilter::Info;
-          continue;
-        }
-        if handler.is_enabled(Level::Warn) {
-          level = LevelFilter::Warn;
-          continue;
-        }
-      }
-      LevelFilter::Warn => {
-        if handler.is_enabled(Level::Trace) {
-          return LevelFilter::Trace;
-        }
-        if handler.is_enabled(Level::Debug) {
-          level = LevelFilter::Debug;
-          continue;
-        }
-        if handler.is_enabled(Level::Info) {
-          level = LevelFilter::Info;
-          continue;
-        }
-      }
-      LevelFilter::Info => {
-        if handler.is_enabled(Level::Trace) {
-          return LevelFilter::Trace;
-        }
-        if handler.is_enabled(Level::Debug) {
-          level = LevelFilter::Debug;
-          continue;
-        }
-      }
-      LevelFilter::Debug => {
-        if handler.is_enabled(Level::Trace) {
-          return LevelFilter::Trace;
-        }
-      }
-      LevelFilter::Trace => unreachable!(),
     }
   }
   level
