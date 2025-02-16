@@ -1,17 +1,14 @@
 use log::{debug, error, info, Level};
-use std::fs::OpenOptions;
+use std::path::Path;
 
 fn main() {
   trivial_log::builder()
-    .appender(
-      Level::Error,
-      OpenOptions::new().append(true).create(true).open("shitlog.log").unwrap(),
-    )
-    .appender_range(Level::Trace, Level::Error, |msg: &str| println!("{}", msg))
+    .appender_range(Level::Info, Level::Error, Path::new("/tmp/mylog.log"))
+    .appender_range(Level::Trace, Level::Error, |msg: &String| print!("{}", msg))
     .init()
     .unwrap();
 
-  error!("fuck you");
+  error!("An error has occurred, please help!");
   println!("normal println");
   debug!("warning");
   let t = std::thread::spawn(move || {
