@@ -5,38 +5,37 @@
 //!
 //!# Example
 //!```rust
-//!fn main() {
 //!  trivial_log::init_std(log::LevelFilter::Trace).unwrap();
 //!  log::error!("An error has occurred, please help!");
-//!}
 //!```
 //!
-#![expect(clippy::result_unit_err)] // TODO, we shouldn't really need an error type for log already initialized
 
 use log::{Level, LevelFilter, Log, Metadata, Record};
 use std::sync::{Arc, RwLock, RwLockReadGuard, TryLockError};
 use std::time::SystemTime;
 
+mod error;
 mod impls;
 mod util;
 
+pub use error::Error;
 
 /// Initializes `log` to forward all log to stdout using the default format
-pub fn init_stdout(level: LevelFilter) -> Result<(), ()> {
+pub fn init_stdout(level: LevelFilter) -> Result<(), Error> {
   builder()
     .default_format(|builder| builder.appender_filter(level, |msg: &String| print!("{}", msg)))
     .init()
 }
 
 /// Initializes `log` to forward all log to stderr using the default format
-pub fn init_stderr(level: LevelFilter) -> Result<(), ()> {
+pub fn init_stderr(level: LevelFilter) -> Result<(), Error> {
   builder()
     .default_format(|builder| builder.appender_filter(level, |msg: &String| eprint!("{}", msg)))
     .init()
 }
 
 /// Initializes `log` to forward all warn and below to stdout and all error to stderr
-pub fn init_std(level: LevelFilter) -> Result<(), ()> {
+pub fn init_std(level: LevelFilter) -> Result<(), Error> {
   match level {
     LevelFilter::Off => builder().init(),
     LevelFilter::Error => builder()
@@ -122,7 +121,6 @@ pub struct Builder {
 }
 
 impl Builder {
-
   /// Use the default format for some appenders.
   /// The passed builder argument FnOnce can be used to register the appenders.
   ///
@@ -168,7 +166,7 @@ impl Builder {
   /// # Errors
   /// Only if a different logger implementation is in use.
   /// If this fn errors then it was essentially a noop.
-  pub fn init(self) -> Result<(), ()> {
+  pub fn init(self) -> Result<(), Error> {
     let level = util::get_level_for_handlers(&self.handlers);
 
     let mut guard = TL.0.write().unwrap_or_else(|poison| {
@@ -254,7 +252,6 @@ impl<T> Handler for HandlerImpl<T> {
 
 /// This trait defines an appender which consumes a formatted log message of type T and will "write" it to somewhere like stdout/disk/network/...
 pub trait Appender<T>: Send + Sync {
-
   /// Called for each formatted log message.
   fn append_log_message(&self, message: &T);
 }

@@ -1,10 +1,11 @@
 use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::Error;
 use crate::{Handler, Level, LevelFilter, TL};
 use log::Record;
 
-pub(crate) fn set_log_logger_impl_and_level(level: LevelFilter) -> Result<(), ()> {
+pub(crate) fn set_log_logger_impl_and_level(level: LevelFilter) -> Result<(), Error> {
   //Purpose of this once look is to track if we are the logging impl in use or not.
   //We only have to call log::set_logger once, as everything except the first call will always fail.
   static INIT: OnceLock<bool> = OnceLock::new();
@@ -15,9 +16,8 @@ pub(crate) fn set_log_logger_impl_and_level(level: LevelFilter) -> Result<(), ()
     return Ok(());
   }
 
-  Err(())
+  Err(Error::AlreadyInitialized)
 }
-
 
 pub(crate) fn get_idx_for_level(level: Level) -> usize {
   match level {
