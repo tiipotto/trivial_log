@@ -13,7 +13,7 @@ impl error::Error for Error {}
 impl Display for Error {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Error::AlreadyInitialized => write!(f, "`log` has already been initialized by another crate"),
+      Self::AlreadyInitialized => write!(f, "`log` has already been initialized by another crate"),
     }
   }
 }

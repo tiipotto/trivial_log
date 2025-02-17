@@ -5,6 +5,7 @@ use std::sync::{mpsc, Arc, Mutex};
 
 use crate::{Appender, IntoAppender};
 
+/// Appender for `BufWriter`
 struct AppenderWriter<X: Write + Send>(Mutex<BufWriter<X>>);
 
 impl<T, Y> IntoAppender<Y> for T
@@ -21,7 +22,7 @@ where
   T: Fn(&Y) + Send + Sync,
 {
   fn append_log_message(&self, message: &Y) {
-    self(message)
+    self(message);
   }
 }
 

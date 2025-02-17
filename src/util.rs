@@ -5,7 +5,11 @@ use crate::Error;
 use crate::{Handler, Level, LevelFilter, TL};
 use log::Record;
 
-pub(crate) fn set_log_logger_impl_and_level(level: LevelFilter) -> Result<(), Error> {
+/// Sets the `trivial_log` impl into the `log` crate or fails.
+/// Also sets the log level if it succeeds or if a previous call to it already succeeded.
+/// # Errors
+/// If another log implementation is already loaded.
+pub fn set_log_logger_impl_and_level(level: LevelFilter) -> Result<(), Error> {
   //Purpose of this once look is to track if we are the logging impl in use or not.
   //We only have to call log::set_logger once, as everything except the first call will always fail.
   static INIT: OnceLock<bool> = OnceLock::new();
@@ -19,7 +23,8 @@ pub(crate) fn set_log_logger_impl_and_level(level: LevelFilter) -> Result<(), Er
   Err(Error::AlreadyInitialized)
 }
 
-pub(crate) fn get_idx_for_level(level: Level) -> usize {
+/// transform `log::Level` into a numeric index
+pub const fn get_idx_for_level(level: Level) -> usize {
   match level {
     Level::Trace => 0,
     Level::Debug => 1,
@@ -29,7 +34,9 @@ pub(crate) fn get_idx_for_level(level: Level) -> usize {
   }
 }
 
-pub(crate) fn default_format(now: SystemTime, record: &Record<'_>) -> Option<String> {
+/// The default log message format used.
+pub fn default_format(now: SystemTime, record: &Record<'_>) -> Option<String> {
+  use std::fmt::Write;
   let prefix = match record.metadata().level() {
     Level::Error => "[E]",
     Level::Warn => "[W]",
@@ -49,7 +56,6 @@ pub(crate) fn default_format(now: SystemTime, record: &Record<'_>) -> Option<Str
       .map(|dt| dt.format_with_items(FORMAT))?
   };
 
-  use std::fmt::Write;
   if writeln!(
     buf,
     "{} - {} - {:?} - {}",
@@ -66,7 +72,8 @@ pub(crate) fn default_format(now: SystemTime, record: &Record<'_>) -> Option<Str
   None
 }
 
-pub(crate) fn get_level_for_handlers(handlers: &Vec<Box<dyn Handler>>) -> LevelFilter {
+/// Returns the greatest `log::LevelFilter` possible that will still service all handlers fully.
+pub fn get_level_for_handlers(handlers: &Vec<Box<dyn Handler>>) -> LevelFilter {
   let mut level = LevelFilter::Off;
   for handler in handlers {
     for lf in [Level::Error, Level::Warn, Level::Info, Level::Debug, Level::Trace] {

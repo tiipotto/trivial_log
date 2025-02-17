@@ -3,9 +3,12 @@ name = "trivial_log"
 version = "0.1.0"
 edition = "2021"
 authors = ["Alexander Schuetz <aschuetz@protonmail.com>", "Kevin Nakamura <grinkers@grinkers.net>"]
+description = "No-bloat leak free implementation for log"
 readme = "README.md"
 keywords = ["logging", "log"]
 license = "Zlib"
+repository = "https://github.com/tiipotto/trivial_log"
+categories = ["value-formatting", "development-tools", "command-line-interface"]
 
 [features]
 default = ["chrono"]

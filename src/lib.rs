@@ -1,5 +1,5 @@
 //!
-//!# trivial_log
+//!# `trivial_log`
 //! This is intended to be a no-bloat implementation for [log](https://github.com/rust-lang/log).
 //! It includes simple defaults while still providing good flexibility for more advanced use cases.
 //!
@@ -9,64 +9,91 @@
 //!  log::error!("An error has occurred, please help!");
 //!```
 //!
+#![deny(clippy::correctness)]
+#![deny(
+  clippy::perf,
+  clippy::complexity,
+  clippy::style,
+  clippy::nursery,
+  clippy::pedantic,
+  clippy::clone_on_ref_ptr,
+  clippy::decimal_literal_representation,
+  clippy::float_cmp_const,
+  clippy::missing_docs_in_private_items,
+  clippy::multiple_inherent_impl,
+  clippy::unwrap_used,
+  clippy::cargo_common_metadata,
+  clippy::used_underscore_binding
+)]
 
 use log::{Level, LevelFilter, Log, Metadata, Record};
 use std::sync::{Arc, RwLock, RwLockReadGuard, TryLockError};
 use std::time::SystemTime;
 
+/// error types
 mod error;
+
+/// Implementations for `FormatFn` or `Appender`/`IntoAppender` for various types in the standard library.
 mod impls;
+
+/// Utility functions
 mod util;
 
 pub use error::Error;
 
 /// Initializes `log` to forward all log to stdout using the default format
+/// # Errors
+/// Only if there is already another log implementation initialized
 pub fn init_stdout(level: LevelFilter) -> Result<(), Error> {
   builder()
-    .default_format(|builder| builder.appender_filter(level, |msg: &String| print!("{}", msg)))
+    .default_format(|builder| builder.appender_filter(level, |msg: &String| print!("{msg}")))
     .init()
 }
 
 /// Initializes `log` to forward all log to stderr using the default format
+/// # Errors
+/// Only if there is already another log implementation initialized
 pub fn init_stderr(level: LevelFilter) -> Result<(), Error> {
   builder()
-    .default_format(|builder| builder.appender_filter(level, |msg: &String| eprint!("{}", msg)))
+    .default_format(|builder| builder.appender_filter(level, |msg: &String| eprint!("{msg}")))
     .init()
 }
 
 /// Initializes `log` to forward all warn and below to stdout and all error to stderr
+/// # Errors
+/// Only if there is already another log implementation initialized
 pub fn init_std(level: LevelFilter) -> Result<(), Error> {
   match level {
     LevelFilter::Off => builder().init(),
     LevelFilter::Error => builder()
-      .default_format(|builder| builder.appender(Level::Error, |msg: &String| eprint!("{}", msg)))
+      .default_format(|builder| builder.appender(Level::Error, |msg: &String| eprint!("{msg}")))
       .init(),
     LevelFilter::Warn => builder()
       .default_format(|builder| {
         builder
-          .appender(Level::Warn, |msg: &String| eprint!("{}", msg))
-          .appender(Level::Error, |msg: &String| eprint!("{}", msg))
+          .appender(Level::Warn, |msg: &String| eprint!("{msg}"))
+          .appender(Level::Error, |msg: &String| eprint!("{msg}"))
       })
       .init(),
     LevelFilter::Info => builder()
       .default_format(|builder| {
         builder
-          .appender_range(Level::Info, Level::Warn, |msg: &String| eprint!("{}", msg))
-          .appender(Level::Error, |msg: &String| eprint!("{}", msg))
+          .appender_range(Level::Info, Level::Warn, |msg: &String| eprint!("{msg}"))
+          .appender(Level::Error, |msg: &String| eprint!("{msg}"))
       })
       .init(),
     LevelFilter::Debug => builder()
       .default_format(|builder| {
         builder
-          .appender_range(Level::Debug, Level::Warn, |msg: &String| eprint!("{}", msg))
-          .appender(Level::Error, |msg: &String| eprint!("{}", msg))
+          .appender_range(Level::Debug, Level::Warn, |msg: &String| eprint!("{msg}"))
+          .appender(Level::Error, |msg: &String| eprint!("{msg}"))
       })
       .init(),
     LevelFilter::Trace => builder()
       .default_format(|fmt| {
         fmt
-          .appender_range(Level::Trace, Level::Warn, |msg: &String| eprint!("{}", msg))
-          .appender(Level::Error, |msg: &String| eprint!("{}", msg))
+          .appender_range(Level::Trace, Level::Warn, |msg: &String| eprint!("{msg}"))
+          .appender(Level::Error, |msg: &String| eprint!("{msg}"))
       })
       .init(),
   }
@@ -77,8 +104,11 @@ pub fn builder() -> Builder {
   Builder::default()
 }
 
+/// Builder for adding appenders to a format `Fn`.
 pub struct AppenderBuilder<T> {
-  format: Box<dyn Fn(SystemTime, &Record<'_>) -> Option<T> + Send + Sync>,
+  /// The format fn
+  format: Box<FormatFn<T>>,
+  /// The appenders grouped by level.
   appender: [Vec<Arc<dyn Appender<T>>>; 5],
 }
 
@@ -105,7 +135,7 @@ impl<T> AppenderBuilder<T> {
     let wrap = appender.into_appender();
     for i in util::get_idx_for_level(from)..=util::get_idx_for_level(to) {
       if let Some(a) = self.appender.get_mut(i) {
-        a.push(wrap.clone())
+        a.push(Arc::clone(&wrap));
       }
     }
 
@@ -113,16 +143,17 @@ impl<T> AppenderBuilder<T> {
   }
 }
 
-/// Builder for configuring trivial_log.
-/// Use trivial_log::builder() to obtain a new instance of this struct.
+/// Builder for configuring `trivial_log`.
+/// Use `trivial_log::builder()` to obtain a new instance of this struct.
 #[derive(Default)]
 pub struct Builder {
+  /// All handlers already built in the builder. init will transform this into a `HandlerCompound`
   handlers: Vec<Box<dyn Handler>>,
 }
 
 impl Builder {
   /// Use the default format for some appenders.
-  /// The passed builder argument FnOnce can be used to register the appenders.
+  /// The passed builder argument `FnOnce` can be used to register the appenders.
   ///
   /// Note: It will lead to better performance if all appenders that use the same format are grouped together and registered in the same closure!
   #[must_use]
@@ -134,8 +165,8 @@ impl Builder {
   }
 
   /// Use a provided format for some appenders.
-  /// The passed format argument Fn will provide the format struct. (for example a String)
-  /// The passed builder argument FnOnce can be used to register the appenders which will consume the format struct.
+  /// The passed format argument `Fn` will provide the format struct. (for example a String)
+  /// The passed builder argument `FnOnce` can be used to register the appenders which will consume the format struct.
   ///
   /// Note: It will lead to better performance if all appenders that use the same format are grouped together and registered in the same closure!
   #[must_use]
@@ -182,6 +213,7 @@ impl Builder {
     }
 
     *guard = Some(HandlerCompound::new(self.handlers));
+    drop(guard);
 
     Ok(())
   }
@@ -214,16 +246,26 @@ pub fn free() {
     .take();
 }
 
+/// The static state holder
 static TL: LogImpl = LogImpl(RwLock::new(None));
 
+/// Trait to hide the static dispatch type T from the rest of the implementation behind dynamic dispatch.
 trait Handler: Sync + Send {
+  ///Log the record for the given time.
   fn log(&self, now: SystemTime, record: &Record<'_>);
 
+  /// Does the handler have any appenders for the given level?
   fn is_enabled(&self, level: Level) -> bool;
 }
 
+/// The format fn
+type FormatFn<T> = dyn Fn(SystemTime, &Record<'_>) -> Option<T> + Send + Sync;
+
+/// Contains a format fn as well as all appenders associated with the format fn.
 struct HandlerImpl<T> {
-  format: Box<dyn Fn(SystemTime, &Record<'_>) -> Option<T> + Send + Sync>,
+  /// The format fn to use to format the `log::Record`
+  format: Box<FormatFn<T>>,
+  /// The appenders for each level
   appender: [Vec<Arc<dyn Appender<T>>>; 5], //5 is number of levels in log crate
 }
 
@@ -263,12 +305,16 @@ pub trait IntoAppender<T> {
   fn into_appender(self) -> Arc<dyn Appender<T>>;
 }
 
+/// Contains a Vec of handlers and also groups them by level.
 struct HandlerCompound {
+  /// Contains all handlers
   handlers: Vec<Box<dyn Handler>>,
+  /// contains indices into handlers vec for each level.
   handler_indices: [Vec<usize>; 5],
 }
 
 impl HandlerCompound {
+  /// Pre-calculates which handlers handle which levels and optimizes the Vec for later use.
   fn new(handlers: Vec<Box<dyn Handler>>) -> Self {
     let mut handler_indices: [Vec<usize>; 5] = [const { Vec::new() }; 5];
 
@@ -292,26 +338,31 @@ impl HandlerCompound {
 
     Self { handlers, handler_indices }
   }
+
+  /// Returns true if at least one handler can handle the level
   fn is_enabled(&self, level: Level) -> bool {
-    self.handler_indices.get(util::get_idx_for_level(level)).map(Vec::is_empty).unwrap_or(false)
+    self.handler_indices.get(util::get_idx_for_level(level)).is_some_and(Vec::is_empty)
   }
+
+  /// Delegates to the correct handlers for the given log levels
   fn log(&self, record: &Record<'_>) {
     let now: SystemTime = SystemTime::now();
     if let Some(indices) = self.handler_indices.get(util::get_idx_for_level(record.level())) {
       for idx in indices {
         if let Some(handler) = self.handlers.get(*idx) {
-          handler.log(now, record)
+          handler.log(now, record);
         }
       }
     }
   }
 }
 
+/// Private static state that holds some heap allocated objects if initialized or nothing if not.
 struct LogImpl(RwLock<Option<HandlerCompound>>);
 impl Log for LogImpl {
   fn enabled(&self, metadata: &Metadata<'_>) -> bool {
     if let Some(guard) = self.guard() {
-      return guard.as_ref().map(|inner| inner.is_enabled(metadata.level())).unwrap_or(false);
+      return guard.as_ref().is_some_and(|inner| inner.is_enabled(metadata.level()));
     }
     false
   }
@@ -328,6 +379,7 @@ impl Log for LogImpl {
 }
 
 impl LogImpl {
+  /// Returns a shared read guard of the static state
   fn guard(&self) -> Option<RwLockReadGuard<'_, Option<HandlerCompound>>> {
     match self.0.try_read() {
       Ok(guard) => Some(guard),
