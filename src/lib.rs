@@ -315,7 +315,8 @@ struct HandlerCompound {
 
 impl HandlerCompound {
   /// Pre-calculates which handlers handle which levels and optimizes the Vec for later use.
-  fn new(handlers: Vec<Box<dyn Handler>>) -> Self {
+  fn new(mut handlers: Vec<Box<dyn Handler>>) -> Self {
+    handlers.shrink_to_fit();
     let mut handler_indices: [Vec<usize>; 5] = [const { Vec::new() }; 5];
 
     for (idx, handler) in handlers.iter().enumerate() {
@@ -335,6 +336,11 @@ impl HandlerCompound {
         handler_indices[4].push(idx);
       }
     }
+
+    handler_indices
+      .iter_mut()
+      .filter(|idx_vec| !idx_vec.is_empty())
+      .for_each(|idx_vec| idx_vec.shrink_to_fit());
 
     Self { handlers, handler_indices }
   }
