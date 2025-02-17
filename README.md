@@ -21,7 +21,7 @@ fn main() {
 
 This will cause messages like these to appear:
 ```text
-[E] 1739664597458 ThreadId(1) - An error has occurred, please help!
+[E] - 17 Feb 2025 22:27:20.956 UTC - ThreadId(1) - An error has occurred, please help!
 ```
 
 ## [File](./examples/file.rs)

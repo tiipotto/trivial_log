@@ -44,7 +44,7 @@ pub(crate) fn default_format(now: SystemTime, record: &Record<'_>) -> Option<Str
   #[cfg(feature = "chrono")]
   let instant = {
     const FORMAT: chrono::format::StrftimeItems<'_> =
-      chrono::format::StrftimeItems::new("%d.%m.%Y %H:%M:%S%.3f UTC");
+      chrono::format::StrftimeItems::new("%d %b %Y %H:%M:%S%.3f UTC");
     chrono::DateTime::from_timestamp_millis(i64::try_from(instant).unwrap_or(0))
       .map(|dt| dt.format_with_items(FORMAT))?
   };
