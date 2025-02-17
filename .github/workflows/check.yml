@@ -149,6 +149,16 @@ jobs:
             components: rustfmt
         - run: cargo fmt --check
 
+  doc:
+      runs-on: ubuntu-latest
+      name: fmt
+      steps:
+        - uses: actions/checkout@v4
+        - uses: dtolnay/rust-toolchain@stable
+          with:
+            components: rustfmt
+        - run: cargo doc
+
   clippy_check:
       name: clippy
       runs-on: ubuntu-latest

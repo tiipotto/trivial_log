@@ -256,7 +256,7 @@ pub trait Appender<T>: Send + Sync {
   fn append_log_message(&self, message: &T);
 }
 
-/// Custom "Into" trait that produces an Arc<dyn Appender<T>.
+/// Custom "Into" trait that produces an Arc<dyn `Appender<T>`.
 /// This trait does not usually need to implemented manually.
 /// It is implemented for all Appender structs by default.
 pub trait IntoAppender<T> {
