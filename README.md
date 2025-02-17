@@ -149,6 +149,9 @@ When a format has multiple appenders, the format fn only gets called once.
     See [Database](./examples/database.rs) for an example.
   * Your appender will be called concurrently if multiple concurrent threads call log at the same.
     It is up to the appender implementation on what to do in this case.
-    * The default impl for file will aquire a ordinary Mutex in the appender
+    * The default impl for file will acquire an ordinary Mutex in the appender
     * The default impl for stdout/stderr will call print! and eprint! macros which guarantee synchronization.
 6. For no "possibly leaked" in valgrind, you must call `trivial_log::free()` before the process exits. It is memory safe (no UB) to not call this.
+   * as documented in the trivial_log::free() fns documentation, calling this fn will not cause any problems when after it you "accidentally" still call log!. You just won't see those log messages.
+7. The default format (which you can easily customize) will always output UTC time. 
+   * I understand this may be inconvenient to people that work with only one time zone but for people that have to compare logs from servers in several different time zones this is a godsend! 
