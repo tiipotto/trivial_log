@@ -53,7 +53,7 @@ fn main() {
 
   trivial_log::builder()
     .default_format(|builder| {
-      builder.appender_range(Level::Trace, Level::Error, |msg: &String| println!("{}", msg))
+      builder.appender_range(Level::Trace, Level::Error, |msg: &String| println!("{msg}"))
     })
     .format(
       |now, record| {

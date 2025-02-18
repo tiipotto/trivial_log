@@ -171,4 +171,4 @@ jobs:
             toolchain: stable minus 2 releases
         - run: cargo clippy --all-features -- --deny warnings
         - run: cargo clippy --no-default-features -- --deny warnings
-        - run: cargo clippy --examples -- --deny warnings -A clippy::unwrap-used
+        - run: cargo clippy --examples -- --deny warnings -A clippy::unwrap-used -A clippy::missing_docs_in_private_items

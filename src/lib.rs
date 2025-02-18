@@ -9,22 +9,6 @@
 //!  log::error!("An error has occurred, please help!");
 //!```
 //!
-#![deny(clippy::correctness)]
-#![deny(
-  clippy::perf,
-  clippy::complexity,
-  clippy::style,
-  clippy::nursery,
-  clippy::pedantic,
-  clippy::clone_on_ref_ptr,
-  clippy::decimal_literal_representation,
-  clippy::float_cmp_const,
-  clippy::missing_docs_in_private_items,
-  clippy::multiple_inherent_impl,
-  clippy::unwrap_used,
-  clippy::cargo_common_metadata,
-  clippy::used_underscore_binding
-)]
 
 use log::{Level, LevelFilter, Log, Metadata, Record};
 use std::sync::{Arc, RwLock, RwLockReadGuard, TryLockError};
@@ -337,10 +321,7 @@ impl HandlerCompound {
       }
     }
 
-    handler_indices
-      .iter_mut()
-      .filter(|idx_vec| !idx_vec.is_empty())
-      .for_each(|idx_vec| idx_vec.shrink_to_fit());
+    handler_indices.iter_mut().filter(|idx_vec| !idx_vec.is_empty()).for_each(Vec::shrink_to_fit);
 
     Self { handlers, handler_indices }
   }

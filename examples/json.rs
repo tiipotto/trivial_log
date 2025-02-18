@@ -14,8 +14,8 @@ fn main() {
   trivial_log::builder()
     .default_format(|builder| {
       builder.appender(Level::Info, |info: &String| {
-        //You can mix and match between different formats
-        print!("NON JSON INFO: {}", info)
+        // You can mix and match between different formats
+        print!("NON JSON INFO: {info}");
       })
     })
     .format(
@@ -32,12 +32,12 @@ fn main() {
           .appender_range(Level::Trace, Level::Warn, |x: &LogEntity| {
             let json = serde_json::to_string(x).unwrap();
             //You would obviously send this to some remote endpoint or write this to a disk.
-            println!("NON ERROR: {}", json);
+            println!("NON ERROR: {json}");
           })
           .appender(Level::Error, |x: &LogEntity| {
             let json = serde_json::to_string(x).unwrap();
             //You would obviously send this to some remote endpoint or write this to a disk.
-            println!("ERROR ONLY: {}", json);
+            println!("ERROR ONLY: {json}");
           })
       },
     )

@@ -10,12 +10,12 @@ use log::Record;
 /// # Errors
 /// If another log implementation is already loaded.
 pub fn set_log_logger_impl_and_level(level: LevelFilter) -> Result<(), Error> {
-  //Purpose of this once look is to track if we are the logging impl in use or not.
-  //We only have to call log::set_logger once, as everything except the first call will always fail.
+  /// Purpose of this once look is to track if we are the logging impl in use or not.
+  /// We only have to call `log::set_logger` once, as everything except the first call will always fail.
   static INIT: OnceLock<bool> = OnceLock::new();
 
   if *INIT.get_or_init(|| log::set_logger(&TL).is_ok()) {
-    //We cant do this inside the init fn, or we cannot "change" the level later on anymore!
+    // We cant do this inside the init fn, or we cannot "change" the level later on anymore!
     log::set_max_level(level);
     return Ok(());
   }
@@ -50,6 +50,7 @@ pub fn default_format(now: SystemTime, record: &Record<'_>) -> Option<String> {
 
   #[cfg(feature = "chrono")]
   let instant = {
+    /// Unambiguous date format with Month names
     const FORMAT: chrono::format::StrftimeItems<'_> =
       chrono::format::StrftimeItems::new("%d %b %Y %H:%M:%S%.3f UTC");
     chrono::DateTime::from_timestamp_millis(i64::try_from(instant).unwrap_or(0))

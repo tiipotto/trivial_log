@@ -13,7 +13,7 @@ fn main() {
     let Ok(msg) = rcv.recv() else {
       return;
     };
-    print!("{}", msg);
+    print!("{msg}");
   });
 
   error!("An error has occurred, please help!");

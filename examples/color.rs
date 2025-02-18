@@ -20,7 +20,7 @@ fn main() {
           rec.args()
         ))
       },
-      |builder| builder.appender_filter(LevelFilter::Trace, |msg: &String| print!("{}", msg)),
+      |builder| builder.appender_filter(LevelFilter::Trace, |msg: &String| print!("{msg}")),
     )
     .init()
     .ok();
@@ -31,5 +31,5 @@ fn main() {
   debug!("Debug");
   trace!("Trace");
 
-  trivial_log::free()
+  trivial_log::free();
 }

@@ -7,7 +7,7 @@ fn main() {
       builder
         //
         .appender_range(Level::Info, Level::Error, Path::new("mylog.log"))
-        .appender_range(Level::Trace, Level::Error, |msg: &String| print!("{}", msg))
+        .appender_range(Level::Trace, Level::Error, |msg: &String| print!("{msg}"))
     })
     .init()
     .unwrap();
