@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use log::{Level, debug, error, info};
+use log::{debug, error, info, Level};
 use rusqlite::Connection;
 use trivial_log::Appender;
 
