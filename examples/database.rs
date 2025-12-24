@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use log::{debug, error, info, Level};
+use log::{Level, debug, error, info};
 use rusqlite::Connection;
 use trivial_log::Appender;
 
@@ -17,7 +17,11 @@ impl Appender<LogEntity> for SqliteLog {
       .unwrap()
       .execute(
         "INSERT INTO logs (ts, level, log) VALUES (?, ?, ?)",
-        (le.unix_time, le.level as usize, &le.message),
+        (
+          i64::try_from(le.unix_time).unwrap_or(0),
+          i64::try_from(le.level as usize).unwrap_or(1),
+          &le.message,
+        ),
       )
       .unwrap();
   }
