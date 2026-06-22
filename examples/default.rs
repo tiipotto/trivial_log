@@ -11,7 +11,7 @@ fn main() {
   });
   t.join().unwrap();
 
-  // trivial_log::free();
+  trivial_log::free();
 }
 
 #[test]
