@@ -46,7 +46,7 @@ pub fn default_format(now: SystemTime, record: &Record<'_>) -> Option<String> {
   };
 
   let mut buf = String::with_capacity(128);
-  let instant = now.duration_since(UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
+  let instant = now.duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis());
 
   #[cfg(feature = "chrono")]
   let instant = {
