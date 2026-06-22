@@ -48,6 +48,7 @@ jobs:
         --error-exitcode=1
         --leak-check=full
         --show-leak-kinds=all
+        --suppressions=.github/valgrind-rust.supp
     steps:
       - name: Update sources
         run: sudo apt update
